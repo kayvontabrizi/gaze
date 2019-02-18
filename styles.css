@@ -1,3 +1,156 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    background: black;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+video {
+    object-fit: cover;
+    height: 100%;
+    width: 100%;
+}
+
 #localVideo {
     transform: scaleX(-1);
+}
+
+#videoPlayer {
+    box-sizing: border-box;
+    padding: 50px;
+}
+
+.panel {
+    box-sizing: border-box;
+    display: inline-block;
+    min-height: 100px;
+    min-width: 100px;
+    overflow: hidden;
+    position: absolute !important;
+}
+
+.player {
+    min-height: 180px;
+    min-width: 320px;
+    height: 270px;
+    width: 480px;
+}
+
+.video {
+    height: 400px;
+    width: 400px;
+}
+
+.player .ui-resizable-handle {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.player .ui-resizable-n {
+    top: 0;
+    left: 25px;
+    right: 25px;
+}
+
+.player .ui-resizable-s {
+    bottom: 0;
+    left: 25px;
+    right: 25px;
+}
+
+.player .ui-resizable-e {
+    right: 0;
+    bottom: 25px;
+    top: 25px;
+}
+
+.player .ui-resizable-w {
+    left: 0;
+    bottom: 25px;
+    top: 25px;
+}
+
+.player .ui-resizable-se {
+    right: 0;
+    bottom: 0;
+}
+
+.player .ui-resizable-sw {
+    left: 0;
+    bottom: 0;
+}
+
+.player .ui-resizable-nw {
+    left: 0;
+    top: 0;
+}
+
+.player .ui-resizable-ne {
+    right: 0;
+    top: 0;
+}
+
+.ui-resizable-handle {
+    background: rgba(0, 0, 0, 0.2);
+    transition: background 0.5s;
+}
+
+.ui-resizable-n {
+    height: 25px;
+    top: 25px;
+    left: 50px;
+    right: 50px;
+}
+
+.ui-resizable-s {
+    height: 25px;
+    bottom: 25px;
+    left: 50px;
+    right: 50px;
+}
+
+.ui-resizable-e {
+    width: 25px;
+    right: 25px;
+    bottom: 50px;
+    top: 50px;
+}
+
+.ui-resizable-w {
+    width: 25px;
+    left: 25px;
+    bottom: 50px;
+    top: 50px;
+}
+
+.ui-resizable-se {
+    width: 25px;
+    height: 25px;
+    right: 25px;
+    bottom: 25px;
+}
+
+.ui-resizable-sw {
+    width: 25px;
+    height: 25px;
+    left: 25px;
+    bottom: 25px;
+}
+
+.ui-resizable-nw {
+    width: 25px;
+    height: 25px;
+    left: 25px;
+    top: 25px;
+}
+
+.ui-resizable-ne {
+    width: 25px;
+    height: 25px;
+    right: 25px;
+    top: 25px;
 }

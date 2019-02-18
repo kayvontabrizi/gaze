@@ -66,10 +66,10 @@ function onStateChange(event) {
     }
 }
 
-//
-var main = new YTPlayer('player', {
-    height: '390',
-    width: '640',
+// create main youtube player
+var main = new YTPlayer('videoPlayer', {
+    height: '100%',
+    width: '100%',
     videoId: 'M7lc1UVf-VE',
     events: {
         'onStateChange': onStateChange,
@@ -119,9 +119,7 @@ function setSendLocalDescription (description) {
     pc.setLocalDescription(description)
 
     // upon success publish the local description
-    .then(() => {
-        message({'sdp': pc.localDescription})
-    })
+    .then(() => message({'sdp': pc.localDescription}))
 
     // catch and log any error
     .catch(logError);
@@ -194,8 +192,8 @@ function setupWebRTC(is_offerer) {
             // set local video source to stream
             local_video.srcObject = stream;
 
-            // add stream to peer connection
-            pc.addStream(stream);
+            // add stream tracks to peer connection
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
         })
 
         // catch and log any error
@@ -270,4 +268,40 @@ function setupSignaling() {
             }
         }
     });
-}
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// // mark which elements should be stored as panels
+// const panels = ['#videoPlayer', '#localVideo', '#remoteVideo'];
+// panels.forEach(element => $(element).draggable().resizable());
+
+// // on DOM ready
+// (() => console.log('DOM ready!'))();
+
+function panelEnter () {
+    var panel = $(this);
+    panel.children('.ui-resizable-handle').css('background', '');
+    setTimeout(() => panel.trigger('mouseleave'), 3000);
+};
+
+function panelLeave () {
+    $(this).children('.ui-resizable-handle').css('background', 'none');
+};
+
+// jQuery DOM ready
+$(() => {
+    // add borders to panels
+    $('.panel').each(function() {
+        $(this).hover(panelEnter, panelLeave);
+    });
+
+    // make panel elements draggable
+    $('.panel').draggable({containment: 'parent'})
+    .resizable({containment: 'parent', handles: 'all'});
+
+    // set resize handle z-indices according to parents
+    $('.ui-resizable-handle').each(function() {
+        $(this).css('z-index', Number($(this).parent().css('z-index'))+1);
+    });
+});
