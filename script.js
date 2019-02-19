@@ -55,11 +55,11 @@ function onStateChange(event) {
     if (event.data == YT.PlayerState.PLAYING) {
         console.log('playing at time');
         console.log(event.target.getCurrentTime());
-        message({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
+        publish({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
     } else if (event.data == YT.PlayerState.PAUSED) {
         console.log('paused at time');
         console.log(event.target.getCurrentTime());
-        message({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
+        publish({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
     } else {
         console.log('state_change:');
         console.log(event);
@@ -92,95 +92,89 @@ const room_name = 'observable-'+room_hash;
 
 // create peer connection configuration
 const pc_config = {
-    iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+    // iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+    iceServers: [{urls: 'stun:stun.stunprotocol.org:3478'}]
 };
 
+// instiate global PeerConnection and empty candidate queue
+var pc;
+var candidate_queue = [];
+
 // track local and remote video objects
-var local_video = document.querySelector("#localVideo");
-var remote_video = document.querySelector("#remoteVideo");
+const local_video = document.querySelector("#localVideo");
+const remote_video = document.querySelector("#remoteVideo");
 
 // configure getUserMedia constraints
 var constraints = {video: true, audio: true};
 
 // publish data in room
-function message (data) {
+function publish(data) {
     drone.publish({room: room_name, message: data});
 };
 
 // error handling function
-function logError (error) {
+function logError(error) {
     // log and return if any error
     if (error) return console.error(error);
 };
 
 // set and publish the peer connection's description
-function setSendLocalDescription (description) {
+function setSendLocalDescription(local_sdp) {
     // set local description
-    pc.setLocalDescription(description)
-
-    // upon success publish the local description
-    .then(() => message({'sdp': pc.localDescription}))
-
-    // catch and log any error
-    .catch(logError);
+    console.log('Set local SDP.');
+    return pc.setLocalDescription(local_sdp);
 };
 
-// handle opening a connection to scaledrone
-drone.on('open', error => {
-    // log and return if any errors
-    if (error) return console.error(error);
-
-    // create a room object by subscribe to the room
-    room = drone.subscribe(room_name)
-
-    // handle opening a connection to room
-    room.on('open', logError);
-
-    // process members list upon receiving it
-    room.on('members', members => {
-        // alert and return if room has more than 2 members
-        if (members.length > 2) return alert('The room is full.');
-
-        // the second user to connect will make the offer
-        const is_offerer = members.length === 2;
-
-        // setup WebRTC
-        setupWebRTC(is_offerer);
-
-        // setup signaling handlers
-        setupSignaling();
-    });
-});
-
 // creates and handles a peer connection
-function setupWebRTC(is_offerer) {
+function setupPeerConnection(offering) {
     // create a peer connection from configuration
     pc = new RTCPeerConnection(pc_config);
 
     // deliver ICE agent to peer upon receipt
     pc.onicecandidate = event => {
-        if (event.candidate) message({'candidate': event.candidate});
+        if (event.candidate) publish({'candidate': event.candidate});
     };
 
-    // if user is offer, create offer
-    if (is_offerer) {
+    // upon remote stream addition, set remote video source to stream
+    pc.ontrack = event => {
+        remote_video.srcObject = event.streams[0];
+    };
+
+    // if offering, prepare PeerConnection to create an offer upon negotiation
+    if (offering) {
         // create an offer whenever negotiation is needed
         pc.onnegotiationneeded = () => {
+            // track whether or not negotiation has already begun
+            if (pc.is_negotiating === true) return;
+            else pc.is_negotiating = true;
+
             // create an offer
             pc.createOffer()
 
             // upon success set the peer connection's local description
             .then(setSendLocalDescription)
 
+            // upon further success publish the local description
+            .then(() => publish({'sdp': pc.localDescription}))
+
             // catch and log any error
-            .catch(logError);
+            .catch(logError)
+
+            //
+            .finally(() => {
+                pc.is_negotiating = false;
+            });
         };
     }
 
-    // upon remote stream addition, set remote video source to stream
-    pc.onaddstream = event => {
-        remote_video.srcObject = event.stream;
-    };
+    // otherwise do nothing
+    else pc.onnegotiationneeded = null;
+
+    // unhandled events
+    pc.onremovetrack = null;
+    pc.oniceconnectionstatechange = null;
+    pc.onicegatheringstatechange = null;
+    pc.onsignalingstatechange = null;
 
     // verify getUserMedia is available
     if (navigator.mediaDevices.getUserMedia) {
@@ -201,7 +195,7 @@ function setupWebRTC(is_offerer) {
     }
 
     // complain if not available
-    else console.log("The browser doesn't support `getUserMedia`.");
+    else logError("The browser doesn't support `getUserMedia`.");
 };
 
 // handles receipt of scaledrone signaling data
@@ -211,24 +205,38 @@ function setupSignaling() {
         // return if client is self
         if (!client || client.id === drone.clientId) return;
 
-        // check message for a session description
+        // check message for a description
         if (message.sdp) {
             // set the peer connection's remote description
-            pc.setRemoteDescription(new RTCSessionDescription(message.sdp))
+            var remote_sdp = new RTCSessionDescription(message.sdp);
+            console.log('Set remote SDP.');
+            pc.setRemoteDescription(remote_sdp)
 
             // upon success, answer any offer
             .then(() => {
                 // verify remote description is an offer
                 if (pc.remoteDescription.type === 'offer') {
+                    // log the offer
+                    console.log('Received offer.');
+
                     // create an answer
                     pc.createAnswer()
 
                     // upon success set the peer connection's local description
                     .then(setSendLocalDescription)
 
+                    // upon further success publish the local description
+                    .then(() => publish({'sdp': pc.localDescription}))
+
                     // catch and log any error
                     .catch(logError);
                 }
+
+                // log if it's an answer
+                else if (pc.remoteDescription.type === 'answer') console.log('Received answer.');
+
+                // otherwise log unrecognized sdp type
+                else logError(pc.remoteDescription.type);
             })
 
             // catch and log any error
@@ -237,17 +245,14 @@ function setupSignaling() {
 
         // check message for an ICE candidate
         else if (message.candidate) {
-            // add any new ICE candidate to our peer connection
-            pc.addIceCandidate(new RTCIceCandidate(message.candidate))
-
-            // catch and log any error
-            .catch(logError)
+            // add ICE candidate to a processing queue
+            candidate_queue.push(message.candidate);
         }
 
         // check message for a player event
         else if (message.player_event) {
             //
-            event = message.player_event
+            event = message.player_event;
 
             //
             if (event['data'] == YT.PlayerState.PLAYING) {
@@ -267,33 +272,78 @@ function setupSignaling() {
                 if (is_playing) main.player.pauseVideo();
             }
         }
+
+        // log any other message
+        else console.log(message);
+
+        // ensure peer connection has a remote description
+        if (pc.remoteDescription) {
+            // loop through candidates in queue
+            candidate_queue.forEach(candidate => {
+                // add any new ICE candidate to our peer connection
+                ice_candidate = new RTCIceCandidate(candidate);
+                pc.addIceCandidate(ice_candidate)
+
+                // catch and log any error
+                .catch(logError);
+            });
+
+            // clear candidate queue
+            candidate_queue = [];
+        }
     });
 };
 
+// handle opening a connection to scaledrone
+drone.on('open', error => {
+    // log and return if any errors
+    if (error) return console.error(error);
+
+    // create a room object by subscribe to the room
+    room = drone.subscribe(room_name)
+
+    // handle opening a connection to room
+    room.on('open', logError);
+
+    // process members list upon receiving it
+    room.on('members', members => {
+        // alert and return if room has more than 2 members
+        if (members.length > 2) return alert('The room is full.');
+
+        // the second user to connect will make the offer
+        const offering = members.length === 2;
+
+        // setup PeerConnection
+        setupPeerConnection(offering);
+
+        // setup signaling handlers
+        setupSignaling();
+    });
+});
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// // mark which elements should be stored as panels
-// const panels = ['#videoPlayer', '#localVideo', '#remoteVideo'];
-// panels.forEach(element => $(element).draggable().resizable());
+// instatiate a global timer for panel handle disappearance
+var timerID = null;
 
-// // on DOM ready
-// (() => console.log('DOM ready!'))();
-
-function panelEnter () {
+// display panel handles
+function panelAwaken() {
     var panel = $(this);
     panel.children('.ui-resizable-handle').css('background', '');
-    setTimeout(() => panel.trigger('mouseleave'), 3000);
+    if (timerID !== null) clearTimeout(timerID);
+    timerID = setTimeout(() => panel.trigger('mouseleave'), 1500);
 };
 
-function panelLeave () {
+// disappear panel handles
+function panelSleep() {
     $(this).children('.ui-resizable-handle').css('background', 'none');
 };
 
 // jQuery DOM ready
 $(() => {
-    // add borders to panels
-    $('.panel').each(function() {
-        $(this).hover(panelEnter, panelLeave);
+    // bind awake/sleep functions to panel mouse/move/enter
+    $('.panel').each(function () {
+        $(this).mousemove(panelAwaken).mouseenter(panelAwaken).mouseleave(panelSleep);
     });
 
     // make panel elements draggable
@@ -301,7 +351,13 @@ $(() => {
     .resizable({containment: 'parent', handles: 'all'});
 
     // set resize handle z-indices according to parents
-    $('.ui-resizable-handle').each(function() {
+    $('.ui-resizable-handle').each(function () {
         $(this).css('z-index', Number($(this).parent().css('z-index'))+1);
     });
 });
+
+// window onload event
+window.onload = function () {
+    // put panels to sleep
+    $('.panel').trigger('mouseleave');
+}

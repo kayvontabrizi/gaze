@@ -96,7 +96,7 @@ video {
 
 .ui-resizable-handle {
     background: rgba(0, 0, 0, 0.2);
-    transition: background 0.5s;
+    transition: background 0.75s;
 }
 
 .ui-resizable-n {
