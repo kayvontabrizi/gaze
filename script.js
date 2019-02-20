@@ -6,78 +6,6 @@ if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// asynchronously load the iframe player API
-var tag = document.createElement('script');
-tag.src = "https://www.youtube.com/iframe_api";
-var firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-// track YTPlayers and whether or not the iframe API is ready
-var YTPlayers = [];
-var YT_API_ready = false;
-
-// define an acceptable sync tolerance (seconds)
-const tolerance = 3;
-
-// define a YTPlayer class
-class YTPlayer {
-    // constructor verifies parameters and creates a YT.Player object
-    constructor(element, params) {
-        // verify element exists and store
-        if (element) this.element = element;
-        else logError("Element doesn't exist!");
-
-        // store params and initialize null player
-        this.params = params;
-        this.player = null;
-
-        // if api ready, create a YT.Player object
-        if (YT_API_ready) this.player = new YT.Player(this.element, this.params);
-
-        // append player to YTPlayers list for tracking
-        YTPlayers.push(this);
-    };
-};
-
-// handles API ready event
-function onYouTubeIframeAPIReady() {
-    // record that API is ready
-    YT_API_ready = true;
-
-    // loop through YTPlayers and create each
-    for (var i = 0; i < YTPlayers.length; i++) {
-        YTPlayers[i].player = new YT.Player(YTPlayers[i].element, YTPlayers[i].params);
-    }
-}
-
-// handles player state changes
-function onStateChange(event) {
-    if (event.data == YT.PlayerState.PLAYING) {
-        console.log('playing at time');
-        console.log(event.target.getCurrentTime());
-        publish({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
-    } else if (event.data == YT.PlayerState.PAUSED) {
-        console.log('paused at time');
-        console.log(event.target.getCurrentTime());
-        publish({'player_event': {'data': event.data, 'time': event.target.getCurrentTime()}});
-    } else {
-        console.log('state_change:');
-        console.log(event);
-    }
-}
-
-// create main youtube player
-var main = new YTPlayer('videoPlayer', {
-    height: '100%',
-    width: '100%',
-    videoId: 'M7lc1UVf-VE',
-    events: {
-        'onStateChange': onStateChange,
-    }
-});
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // generate hash if not given
 if (!location.hash) location.hash = Math.floor(Math.random()*0xFFFFFF).toString(16);
 
@@ -183,8 +111,10 @@ function setupPeerConnection(offering) {
 
         // upon success
         .then(stream => {
-            // set local video source to stream
+            // set local video source to stream and mute
             local_video.srcObject = stream;
+            local_video.controls = false;
+            local_video.muted = true;
 
             // add stream tracks to peer connection
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
@@ -249,29 +179,8 @@ function setupSignaling() {
             candidate_queue.push(message.candidate);
         }
 
-        // check message for a player event
-        else if (message.player_event) {
-            //
-            event = message.player_event;
-
-            //
-            if (event['data'] == YT.PlayerState.PLAYING) {
-                var time_diff = Math.abs(main.player.getCurrentTime() - event['time']);
-                if (time_diff > tolerance) main.player.seekTo(event['time'], true);
-                var is_playing = [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING]
-                .includes(main.player.getPlayerState());
-                if (!is_playing) main.player.playVideo();
-            }
-
-            //
-            else if (event['data'] == YT.PlayerState.PAUSED) {
-                var time_diff = Math.abs(main.player.getCurrentTime() - event['time']);
-                if (time_diff > tolerance) main.player.seekTo(event['time'], true);
-                var is_playing = [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING]
-                .includes(main.player.getPlayerState());
-                if (is_playing) main.player.pauseVideo();
-            }
-        }
+        // check message for a player state
+        else if (message.player_state) syncPlayerState(message.player_state);
 
         // log any other message
         else console.log(message);
@@ -323,6 +232,178 @@ drone.on('open', error => {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// asynchronously load the iframe player API
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+// track YTPlayers and whether or not the iframe API is ready
+var YTPlayers = {};
+var YT_API_ready = false;
+
+// define an acceptable sync tolerance (seconds)
+const tolerance = 3;
+
+// define a YTPlayer class
+class YTPlayer {
+    // constructor verifies parameters and creates a YT.Player object
+    constructor(element, ID, height='100%', width='100%') {
+        // verify element exists and store
+        if (element) this.element = element;
+        else logError("Element doesn't exist!");
+
+        // store params, initialize null player and video queue, track player readiness
+        this.params = {
+            height: height,
+            width: width,
+            videoId: ID,
+            events: {
+                'onStateChange': onStateChange,
+                'onReady': onPlayerReady,
+            }
+        };
+        this.player = null;
+        this.queue = [];
+        this.ready = false;
+
+        // if api ready, create a YT.Player object
+        if (YT_API_ready) this.player = new YT.Player(this.element, this.params);
+
+        // append player to YTPlayers list for tracking
+        YTPlayers[element] = this;
+    };
+
+    // cue a video given an ID
+    cueByID(ID) {
+        // load the video if ready
+        if (this.ready) this.loadByID(ID);
+
+        // otherwise add to queue
+        else this.queue.push(ID);
+    };
+
+    // load a video given an ID
+    loadByID(ID) {
+        this.player.loadVideoById(ID);
+    };
+};
+
+// handles API ready event
+function onYouTubeIframeAPIReady() {
+    // record that API is ready
+    YT_API_ready = true;
+
+    // loop through YTPlayers and create each
+    for (var key in YTPlayers) {
+        var yt_player = YTPlayers[key];
+        yt_player.player = new YT.Player(yt_player.element, yt_player.params);
+    }
+};
+
+// handles player ready event
+function onPlayerReady(event) {
+    // identify YT Player object
+    yt_player = YTPlayers[event.target.a.id]
+
+    // set player readiness to true
+    yt_player.ready = true;
+
+    // place most recently queued video
+    if (yt_player.queue.length > 0) yt_player.loadByID(yt_player.queue.pop());
+};
+
+// define state translation dictionary
+var states = {
+    '-1': 'unstarted',
+    '0': 'ended',
+    '1': 'playing',
+    '2': 'paused',
+    '3': 'buffering',
+    '5': 'video cued',
+};
+
+// generates state object
+function getState(player) {
+    // // return and log error if player state undefined
+    // if (player.getPlayerState() === undefined) return logError(player);
+
+    // handle undefined player state
+    if (player.getPlayerState() === undefined) state = 'paused';
+    else state = states[player.getPlayerState().toString()];
+
+    // return a dictionary with player state info
+    return {
+        'state': state,
+        'time': player.getCurrentTime(),
+        'type': 'youtube',
+        'ID': player.getVideoData()['video_id'],
+    };
+};
+
+// handles player state changes
+function onStateChange(event) {
+    publish({'player_state': getState(event.target)});
+};
+
+// adjust player given new state
+function syncPlayerState(new_state) {
+    // get current player and state
+    var player = mainYT.player;
+    var old_state = getState(player);
+
+    // switch video if necessary
+    if (new_state['ID'] != old_state['ID']) mainYT.cueByID(new_state['ID']);
+
+    // adjust time if necessary
+    var time_diff = Math.abs(old_state['time']-new_state['time']);
+    if (time_diff > tolerance) player.seekTo(new_state['time'], true);
+
+    // play if new_state is 'playing' and old state is neither 'playing' nor 'buffering'
+    if (new_state['state'] == 'playing' &&
+        !['playing', 'buffering'].includes(old_state['state'])) player.playVideo();
+
+    // pause if new_state is 'paused' and old state is 'playing' or 'buffering'
+    if (new_state['state'] == 'paused' &&
+        ['playing', 'buffering'].includes(old_state['state'])) player.pauseVideo();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// create main global youtube player
+var mainYT = new YTPlayer('videoPlayer', '3jWRrafhO7M');
+
+// extract ID from youtube URL
+function URL2ID(URL) {
+    if (URL.includes('v=')) {
+        var ID = URL.split('v=')[1];
+        if (ID.indexOf('&') != -1) ID = ID.substring(0, ID.indexOf('&'));
+    } else {
+        var ID = URL.split('?')[0].split('/');
+        ID = ID[ID.length-1];
+    }
+    return ID;
+};
+
+// generate youtube URL given ID
+function ID2URL(ID) {
+    return 'http://www.youtube.com/v/'+ID+'?version=3';
+};
+
+// handle console submission
+function onConsoleSubmit(event) {
+    // extract input
+    var input = $('input[name=url]')[0].value;
+
+    // extract ID from input
+    var ID = input.includes('youtube') ? URL2ID(input) : input;
+
+    // update the video
+    mainYT.cueByID(ID);
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // instatiate a global timer for panel handle disappearance
 var timerID = null;
 
@@ -354,10 +435,65 @@ $(() => {
     $('.ui-resizable-handle').each(function () {
         $(this).css('z-index', Number($(this).parent().css('z-index'))+1);
     });
+
+    // disable context menu for listed elements
+    ['.ui-resizable-handle', local_video, remote_video].forEach(element => {
+        // bind mousedown handler
+        $(element).mousedown(event => {
+            // detect right click (including control-click)
+            right_click = event.which === 3 || (event.which === 1 && event.ctrlKey);
+
+            // overwrite contextmenu function if right click
+            if (right_click) $(this).contextmenu(() => { return false; });
+
+            // otherwise unbind the overwritten function
+            else $(this).unbind('contextmenu');
+        })
+    });
+
+    // track state of the tilde
+    var tilde_down;
+
+    // bind keydown anywhere
+    $(document).keydown(event => {
+        // detect tilde press
+        if(event.key === '~') {
+            // dodge repeat events
+            if (tilde_down) return;
+
+            // otherwise perform tilde action
+            else {
+                // note that tilde is pressed
+                tilde_down = true;
+
+                // toggle console
+                $('#console').toggle();
+            }
+        }
+    });
+
+    // bind keyup anywhere
+    $(document).keyup(event => {
+        // detect tilde lifted and note
+        if(event.key === '~') tilde_down = false;
+    });
+
+    // bind console url submission
+    $('form#console').submit(event => {
+        // prevent default submission
+        event.preventDefault();
+
+        // trigger submission handler
+        onConsoleSubmit(event);
+
+        // return false for good measure
+        return false;
+    });
+
 });
 
 // window onload event
 window.onload = function () {
     // put panels to sleep
     $('.panel').trigger('mouseleave');
-}
+};

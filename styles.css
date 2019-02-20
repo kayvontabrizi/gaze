@@ -16,6 +16,20 @@ video {
     width: 100%;
 }
 
+.local {
+    top: 138px;
+    left: 184px;
+    height: 102px;
+    width: 136px;
+}
+
+.remote {
+    left: 0;
+    top: 0;
+    height: 240px;
+    width: 320px;
+}
+
 #localVideo {
     transform: scaleX(-1);
 }
@@ -23,6 +37,30 @@ video {
 #videoPlayer {
     box-sizing: border-box;
     padding: 50px;
+}
+
+#console {
+    display: none;
+    position: absolute;
+    height: 50px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+
+#console input {
+    height: 100%;
+    width: 100%;
+    text-align: center;
+    text-shadow: 1px 1px 0px #666;
+    font-family: monospace;
+    font-size: 1.2em;
+    letter-spacing: 0.1em;
+    color: #BBB;
+    background: #222;
+    border: none;
+    outline: none;
 }
 
 .panel {
@@ -35,15 +73,12 @@ video {
 }
 
 .player {
+    top: 0;
+    right: 0;
     min-height: 180px;
     min-width: 320px;
-    height: 270px;
-    width: 480px;
-}
-
-.video {
-    height: 400px;
-    width: 400px;
+    height: 540px;
+    width: 960px;
 }
 
 .player .ui-resizable-handle {
