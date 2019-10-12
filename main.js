@@ -6,18 +6,8 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// error handling function
-function logError(error) {
-    // log and return if any error
-    if (error) return console.error(error);
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// generate hash if not given
+// identify the room hash (generate if not given)
 if (!location.hash) location.hash = Math.floor(Math.random()*0xFFFFFF).toString(16);
-
-// identify the room hash
 const room_hash = location.hash.substring(1);
 
 // create ScaleDrone object and connect to channel
@@ -41,163 +31,11 @@ let room = new Room(drone, room_name, pc_config, local_video, remote_video)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// asynchronously load the iframe player API
-var tag = document.createElement('script');
-tag.src = "https://www.youtube.com/iframe_api";
-var firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+// initialize youtube API
+youtube_init();
 
-// track YTPlayers and whether or not the iframe API is ready
-var YTPlayers = {};
-var YT_API_ready = false;
-
-// define an acceptable sync tolerance (seconds)
-const tolerance = 3;
-
-// define a YTPlayer class
-class YTPlayer {
-    // constructor verifies parameters and creates a YT.Player object
-    constructor(element, ID, height='100%', width='100%') {
-        // verify element exists and store
-        if (element) this.element = element;
-        else logError("Element doesn't exist!");
-
-        // store params, initialize null player and video queue, track player readiness
-        this.params = {
-            height: height,
-            width: width,
-            videoId: ID,
-            events: {
-                'onStateChange': onStateChange,
-                'onReady': onPlayerReady,
-            }
-        };
-        this.player = null;
-        this.queue = [];
-        this.ready = false;
-
-        // if api ready, create a YT.Player object
-        if (YT_API_ready) this.player = new YT.Player(this.element, this.params);
-
-        // append player to YTPlayers list for tracking
-        YTPlayers[element] = this;
-    };
-
-    // cue a video given an ID
-    cueByID(ID) {
-        // load the video if ready
-        if (this.ready) this.loadByID(ID);
-
-        // otherwise add to queue
-        else this.queue.push(ID);
-    };
-
-    // load a video given an ID
-    loadByID(ID) {
-        this.player.loadVideoById(ID);
-    };
-};
-
-// handles API ready event
-function onYouTubeIframeAPIReady() {
-    // record that API is ready
-    YT_API_ready = true;
-
-    // loop through YTPlayers and create each
-    for (var key in YTPlayers) {
-        var yt_player = YTPlayers[key];
-        yt_player.player = new YT.Player(yt_player.element, yt_player.params);
-    }
-};
-
-// handles player ready event
-function onPlayerReady(event) {
-    // identify YT Player object
-    yt_player = YTPlayers[event.target.a.id]
-
-    // set player readiness to true
-    yt_player.ready = true;
-
-    // place most recently queued video
-    if (yt_player.queue.length > 0) yt_player.loadByID(yt_player.queue.pop());
-};
-
-// define state translation dictionary
-var states = {
-    '-1': 'unstarted',
-    '0': 'ended',
-    '1': 'playing',
-    '2': 'paused',
-    '3': 'buffering',
-    '5': 'video cued',
-};
-
-// generates state object
-function getState(player) {
-    // // return and log error if player state undefined
-    // if (player.getPlayerState() === undefined) return logError(player);
-
-    // handle undefined player state
-    if (player.getPlayerState() === undefined) state = 'paused';
-    else state = states[player.getPlayerState().toString()];
-
-    // return a dictionary with player state info
-    return {
-        'state': state,
-        'time': player.getCurrentTime(),
-        'type': 'youtube',
-        'ID': player.getVideoData()['video_id'],
-    };
-};
-
-// handles player state changes
-function onStateChange(event) {
-    room.publish({'player_state': getState(event.target)});
-};
-
-// adjust player given new state
-function syncPlayerState(new_state) {
-    // get current player and state
-    var player = mainYT.player;
-    var old_state = getState(player);
-
-    // switch video if necessary
-    if (new_state['ID'] != old_state['ID']) mainYT.cueByID(new_state['ID']);
-
-    // adjust time if necessary
-    var time_diff = Math.abs(old_state['time']-new_state['time']);
-    if (time_diff > tolerance) player.seekTo(new_state['time'], true);
-
-    // play if new_state is 'playing' and old state is neither 'playing' nor 'buffering'
-    if (new_state['state'] == 'playing' &&
-        !['playing', 'buffering'].includes(old_state['state'])) player.playVideo();
-
-    // pause if new_state is 'paused' and old state is 'playing' or 'buffering'
-    if (new_state['state'] == 'paused' &&
-        ['playing', 'buffering'].includes(old_state['state'])) player.pauseVideo();
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// create main global youtube player
-var mainYT = new YTPlayer('youtube_player', '3jWRrafhO7M');
-
-// extract ID from youtube URL
-function URL2ID(URL) {
-    if (URL.includes('v=')) {
-        var ID = URL.split('v=')[1];
-        if (ID.indexOf('&') != -1) ID = ID.substring(0, ID.indexOf('&'));
-    } else {
-        var ID = URL.split('?')[0].split('/');
-        ID = ID[ID.length-1];
-    }
-    return ID;
-};
-
-// generate youtube URL given ID
-function ID2URL(ID) {
-    return 'http://www.youtube.com/v/'+ID+'?version=3';
-};
+// create main global youtube player and set as room player
+room.player = new YTPlayer('youtube_player', '3jWRrafhO7M');
 
 // handle console submission
 function onConsoleSubmit(event) {
@@ -205,13 +43,11 @@ function onConsoleSubmit(event) {
     var input = $('input[name=url]')[0].value;
 
     // extract ID from input
-    var ID = input.includes('youtube') ? URL2ID(input) : input;
+    var ID = input.includes('youtube') ? YTPlayer.URL2ID(input) : input;
 
-    // update the video
-    mainYT.cueByID(ID);
+    // update the youtube player video
+    room.player.cueByID(ID);
 };
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // instatiate a global timer for panel handle disappearance
 var timerID = null;

@@ -30,11 +30,11 @@ video {
     width: 320px;
 }
 
-#localVideo {
+#local_video {
     transform: scaleX(-1);
 }
 
-#videoPlayer {
+#youtube_player {
     box-sizing: border-box;
     padding: 50px;
 }

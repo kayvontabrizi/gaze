@@ -1,13 +1,14 @@
 // define a Room object for p2p videochatting management
 class Room {
     // configure Room and underlying ScaleDrone object for two-person communication
-    constructor(drone, room_name, pc_config, local_video, remote_video, constraints={video: true, audio: true}) {
-        // store room name, PeerConnection configuration, video DOM elements, and getUserMedia constraints
+    constructor(drone, room_name, pc_config, local_video, remote_video, player=null, constraints={video: true, audio: true}) {
+        // store room name, PeerConnection configuration, video DOM elements, a player object, and getUserMedia constraints
         this.room_name = room_name;
         this.pc_config = pc_config;
         this.local_video = local_video;
         this.remote_video = remote_video;
         this.constraints = constraints;
+        this.player = player;
 
         // instantiate null room, peer connection and empty candidate queue globals
         this.room = null;
@@ -17,13 +18,13 @@ class Room {
         // handle opening a connection to scaledrone
         drone.on('open', error => {
             // log and return if any errors
-            if (error) return logError(error);
+            if (error) return utils.error(error);
 
             // create a room object by subscribe to the room
             this.room = drone.subscribe(this.room_name);
 
             // handle opening a connection to room
-            this.room.on('open', logError);
+            this.room.on('open', utils.error);
 
             // process members list upon receiving it
             this.room.on('members', members => {
@@ -54,7 +55,7 @@ class Room {
     // set and publish the peer connection's description
     setSendLocalDescription(local_sdp) {
         // set local description
-        console.log('Set local SDP.');
+        utils.log('Set local SDP.');
         return this.pc.setLocalDescription(local_sdp);
     }
 
@@ -91,7 +92,7 @@ class Room {
                 .then(() => publish({'sdp': this.pc.localDescription}))
 
                 // catch and log any error
-                .catch(logError)
+                .catch(utils.error)
 
                 //
                 .finally(() => {
@@ -126,11 +127,11 @@ class Room {
             })
 
             // catch and log any error
-            .catch(logError);
+            .catch(utils.error);
         }
 
         // complain if not available
-        else logError("The browser doesn't support `getUserMedia`.");
+        else utils.error("The browser doesn't support `getUserMedia`.");
     }
 
     // handles receipt of scaledrone signaling data
@@ -144,7 +145,7 @@ class Room {
             if (message.sdp) {
                 // set the peer connection's remote description
                 var remote_sdp = new RTCSessionDescription(message.sdp);
-                console.log('Set remote SDP.');
+                utils.log('Set remote SDP.');
                 this.pc.setRemoteDescription(remote_sdp)
 
                 // upon success, answer any offer
@@ -152,7 +153,7 @@ class Room {
                     // verify remote description is an offer
                     if (this.pc.remoteDescription.type === 'offer') {
                         // log the offer
-                        console.log('Received offer.');
+                        utils.log('Received offer.');
 
                         // create an answer
                         this.pc.createAnswer()
@@ -164,18 +165,18 @@ class Room {
                         .then(() => publish({'sdp': this.pc.localDescription}))
 
                         // catch and log any error
-                        .catch(logError);
+                        .catch(utils.error);
                     }
 
                     // log if it's an answer
-                    else if (this.pc.remoteDescription.type === 'answer') console.log('Received answer.');
+                    else if (this.pc.remoteDescription.type === 'answer') utils.log('Received answer.');
 
                     // otherwise log unrecognized sdp type
-                    else logError(this.pc.remoteDescription.type);
+                    else utils.error(this.pc.remoteDescription.type);
                 })
 
                 // catch and log any error
-                .catch(logError);
+                .catch(utils.error);
             }
 
             // check message for an ICE candidate
@@ -185,10 +186,10 @@ class Room {
             }
 
             // check message for a player state
-            else if (message.player_state) syncPlayerState(message.player_state);
+            else if (message.player_state && this.player) this.player.syncState(message.player_state);
 
             // log any other message
-            else console.log(message);
+            else utils.log(message);
 
             // ensure peer connection has a remote description
             if (this.pc.remoteDescription) {
@@ -199,7 +200,7 @@ class Room {
                     this.pc.addIceCandidate(ice_candidate)
 
                     // catch and log any error
-                    .catch(logError);
+                    .catch(utils.error);
                 });
 
                 // clear candidate queue
