@@ -1,8 +1,16 @@
-// throw exception if the user fails simple password prompt
-var pass = prompt("Password?", "<password goes here>");
-if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
-    throw new Error("Incorrect password!");
-}
+// // throw exception if the user fails simple password prompt
+// var pass = prompt("Password?", "<password goes here>");
+// if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
+//     throw new Error("Incorrect password!");
+// }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// error handling function
+function logError(error) {
+    // log and return if any error
+    if (error) return console.error(error);
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24,211 +32,12 @@ const pc_config = {
     iceServers: [{urls: 'stun:stun.stunprotocol.org:3478'}]
 };
 
-// instiate global PeerConnection and empty candidate queue
-var pc;
-var candidate_queue = [];
-
 // track local and remote video objects
-const local_video = document.querySelector("#localVideo");
-const remote_video = document.querySelector("#remoteVideo");
+const local_video = document.querySelector("#local_video");
+const remote_video = document.querySelector("#remote_video");
 
-// configure getUserMedia constraints
-var constraints = {video: true, audio: true};
-
-// publish data in room
-function publish(data) {
-    drone.publish({room: room_name, message: data});
-};
-
-// error handling function
-function logError(error) {
-    // log and return if any error
-    if (error) return console.error(error);
-};
-
-// set and publish the peer connection's description
-function setSendLocalDescription(local_sdp) {
-    // set local description
-    console.log('Set local SDP.');
-    return pc.setLocalDescription(local_sdp);
-};
-
-// creates and handles a peer connection
-function setupPeerConnection(offering) {
-    // create a peer connection from configuration
-    pc = new RTCPeerConnection(pc_config);
-
-    // deliver ICE agent to peer upon receipt
-    pc.onicecandidate = event => {
-        if (event.candidate) publish({'candidate': event.candidate});
-    };
-
-    // upon remote stream addition, set remote video source to stream
-    pc.ontrack = event => {
-        remote_video.srcObject = event.streams[0];
-    };
-
-    // if offering, prepare PeerConnection to create an offer upon negotiation
-    if (offering) {
-        // create an offer whenever negotiation is needed
-        pc.onnegotiationneeded = () => {
-            // track whether or not negotiation has already begun
-            if (pc.is_negotiating === true) return;
-            else pc.is_negotiating = true;
-
-            // create an offer
-            pc.createOffer()
-
-            // upon success set the peer connection's local description
-            .then(setSendLocalDescription)
-
-            // upon further success publish the local description
-            .then(() => publish({'sdp': pc.localDescription}))
-
-            // catch and log any error
-            .catch(logError)
-
-            //
-            .finally(() => {
-                pc.is_negotiating = false;
-            });
-        };
-    }
-
-    // otherwise do nothing
-    else pc.onnegotiationneeded = null;
-
-    // unhandled events
-    pc.onremovetrack = null;
-    pc.oniceconnectionstatechange = null;
-    pc.onicegatheringstatechange = null;
-    pc.onsignalingstatechange = null;
-
-    // verify getUserMedia is available
-    if (navigator.mediaDevices.getUserMedia) {
-        // initialize getUserMedia with constraints
-        navigator.mediaDevices.getUserMedia(constraints)
-
-        // upon success
-        .then(stream => {
-            // set local video source to stream and mute
-            local_video.srcObject = stream;
-            local_video.controls = false;
-            local_video.muted = true;
-
-            // add stream tracks to peer connection
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
-        })
-
-        // catch and log any error
-        .catch(logError);
-    }
-
-    // complain if not available
-    else logError("The browser doesn't support `getUserMedia`.");
-};
-
-// handles receipt of scaledrone signaling data
-function setupSignaling() {
-    // process scaledrone data upon receipt
-    room.on('data', (message, client) => {
-        // return if client is self
-        if (!client || client.id === drone.clientId) return;
-
-        // check message for a description
-        if (message.sdp) {
-            // set the peer connection's remote description
-            var remote_sdp = new RTCSessionDescription(message.sdp);
-            console.log('Set remote SDP.');
-            pc.setRemoteDescription(remote_sdp)
-
-            // upon success, answer any offer
-            .then(() => {
-                // verify remote description is an offer
-                if (pc.remoteDescription.type === 'offer') {
-                    // log the offer
-                    console.log('Received offer.');
-
-                    // create an answer
-                    pc.createAnswer()
-
-                    // upon success set the peer connection's local description
-                    .then(setSendLocalDescription)
-
-                    // upon further success publish the local description
-                    .then(() => publish({'sdp': pc.localDescription}))
-
-                    // catch and log any error
-                    .catch(logError);
-                }
-
-                // log if it's an answer
-                else if (pc.remoteDescription.type === 'answer') console.log('Received answer.');
-
-                // otherwise log unrecognized sdp type
-                else logError(pc.remoteDescription.type);
-            })
-
-            // catch and log any error
-            .catch(logError);
-        }
-
-        // check message for an ICE candidate
-        else if (message.candidate) {
-            // add ICE candidate to a processing queue
-            candidate_queue.push(message.candidate);
-        }
-
-        // check message for a player state
-        else if (message.player_state) syncPlayerState(message.player_state);
-
-        // log any other message
-        else console.log(message);
-
-        // ensure peer connection has a remote description
-        if (pc.remoteDescription) {
-            // loop through candidates in queue
-            candidate_queue.forEach(candidate => {
-                // add any new ICE candidate to our peer connection
-                ice_candidate = new RTCIceCandidate(candidate);
-                pc.addIceCandidate(ice_candidate)
-
-                // catch and log any error
-                .catch(logError);
-            });
-
-            // clear candidate queue
-            candidate_queue = [];
-        }
-    });
-};
-
-// handle opening a connection to scaledrone
-drone.on('open', error => {
-    // log and return if any errors
-    if (error) return console.error(error);
-
-    // create a room object by subscribe to the room
-    room = drone.subscribe(room_name)
-
-    // handle opening a connection to room
-    room.on('open', logError);
-
-    // process members list upon receiving it
-    room.on('members', members => {
-        // alert and return if room has more than 2 members
-        if (members.length > 2) return alert('The room is full.');
-
-        // the second user to connect will make the offer
-        const offering = members.length === 2;
-
-        // setup PeerConnection
-        setupPeerConnection(offering);
-
-        // setup signaling handlers
-        setupSignaling();
-    });
-});
+// create Room object to handle p2p communication and videochatting
+let room = new Room(drone, room_name, pc_config, local_video, remote_video)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -343,7 +152,7 @@ function getState(player) {
 
 // handles player state changes
 function onStateChange(event) {
-    publish({'player_state': getState(event.target)});
+    room.publish({'player_state': getState(event.target)});
 };
 
 // adjust player given new state
@@ -371,7 +180,7 @@ function syncPlayerState(new_state) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // create main global youtube player
-var mainYT = new YTPlayer('videoPlayer', '3jWRrafhO7M');
+var mainYT = new YTPlayer('youtube_player', '3jWRrafhO7M');
 
 // extract ID from youtube URL
 function URL2ID(URL) {
