@@ -24,7 +24,7 @@ class Room {
             this.room = drone.subscribe(this.room_name);
 
             // handle opening a connection to room
-            this.room.on('open', utils.error);
+            this.room.on('open', utils.log);
 
             // process members list upon receiving it
             this.room.on('members', members => {
@@ -92,7 +92,7 @@ class Room {
                 .then(() => publish({'sdp': this.pc.localDescription}))
 
                 // catch and log any error
-                .catch(utils.error)
+                .catch(utils.warning)
 
                 //
                 .finally(() => {
@@ -127,11 +127,11 @@ class Room {
             })
 
             // catch and log any error
-            .catch(utils.error);
+            .catch(utils.warning);
         }
 
         // complain if not available
-        else utils.error("The browser doesn't support `getUserMedia`.");
+        else utils.warning("The browser doesn't support `getUserMedia`.");
     }
 
     // handles receipt of scaledrone signaling data
@@ -165,18 +165,18 @@ class Room {
                         .then(() => publish({'sdp': this.pc.localDescription}))
 
                         // catch and log any error
-                        .catch(utils.error);
+                        .catch(utils.warning);
                     }
 
                     // log if it's an answer
                     else if (this.pc.remoteDescription.type === 'answer') utils.log('Received answer.');
 
                     // otherwise log unrecognized sdp type
-                    else utils.error(this.pc.remoteDescription.type);
+                    else utils.warning(this.pc.remoteDescription.type);
                 })
 
                 // catch and log any error
-                .catch(utils.error);
+                .catch(utils.warning);
             }
 
             // check message for an ICE candidate
@@ -200,7 +200,7 @@ class Room {
                     this.pc.addIceCandidate(ice_candidate)
 
                     // catch and log any error
-                    .catch(utils.error);
+                    .catch(utils.warning);
                 });
 
                 // clear candidate queue

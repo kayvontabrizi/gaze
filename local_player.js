@@ -2,6 +2,9 @@
 class LocalPlayer extends Player {
     // constructor verifies parameters and creates a LocalPlayer object
     constructor(element_ID, init_src=null, tolerance=3) {
+        // initialize superclass
+        super();
+
         // verify element ID exists and store
         if (!!document.getElementById(element_ID)) this.element_ID = element_ID;
         else utils.error("Element doesn't exist!");
@@ -24,5 +27,30 @@ class LocalPlayer extends Player {
         this.source.setAttribute('src', src);
         utils.log(this.source);
         this.video.load();
+    }
+
+    // hide player
+    close() {
+        // stop any playing video
+        this.video.pause();
+
+        // get player element and hide
+        document.getElementById(this.element_ID).style.display = 'none';
+    }
+
+    // hide player
+    open() {
+        // get player element and hide
+        document.getElementById(this.element_ID).style.display = '';
+    }
+
+    // load a video
+    load(data) {
+        loadSRC(data);
+    }
+
+    // adjust player given new state object
+    syncState(new_state) {
+	return;
     }
 }

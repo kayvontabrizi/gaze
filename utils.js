@@ -2,13 +2,19 @@
 class utils {
     // basic logging function
     static log(msg) {
-        // log message in console
-        return console.log(msg);
+        // if provided, log message in console
+        if (msg) console.log(msg);
+    }
+
+    // warning handling function
+    static warning(msg) {
+        // log error message in console
+        console.error(msg);
     }
 
     // error handling function
-    static error(error) {
-        // log and return if any error
-        if (error) return console.error(error);
+    static error(msg) {
+        // throw an error with the given message
+        throw new Error(msg);
     }
 }

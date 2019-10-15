@@ -16,7 +16,7 @@ video {
     width: 100%;
 }
 
-.player {
+.pad_me {
     box-sizing: border-box;
     padding: 50px;
 }
