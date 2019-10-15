@@ -31,11 +31,17 @@ let room = new Room(drone, room_name, pc_config, local_video, remote_video)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// create main local player and set as room player
+main_local_player = new LocalPlayer('local_player');
+
 // initialize youtube API
 youtube_init();
 
-// create main global youtube player and set as room player
-room.player = new YTPlayer('youtube_player', '3jWRrafhO7M');
+// create main youtube player
+main_ytplayer = new YTPlayer('youtube_player', '3jWRrafhO7M');
+
+// set default room player
+room.player = main_local_player;
 
 // handle console submission
 function onConsoleSubmit(event) {
@@ -45,9 +51,29 @@ function onConsoleSubmit(event) {
     // extract ID from input
     var ID = input.includes('youtube') ? YTPlayer.URL2ID(input) : input;
 
+    // set the room player to the main youtube player, if not already
+    if (!(room.player instanceof YTPlayer)) room.player = main_ytplayer;
+
     // update the youtube player video
     room.player.cueByID(ID);
 };
+
+// handle file selector change
+function onFileChange(event) {
+    // create an ObjectURL
+    url = URL.createObjectURL(event.target.files[0]);
+
+    // revoke any pre-existing ObjectURL
+    if (local_player.src) URL.revokeObjectURL(local_player.src);
+
+    // set the room player to the main youtube player, if not already
+    if (!(room.player instanceof LocalPlayer)) room.player = main_local_player;
+
+    // cue player to load new video
+    room.player.loadSRC(url);
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // instatiate a global timer for panel handle disappearance
 var timerID = null;
@@ -135,6 +161,10 @@ $(() => {
         return false;
     });
 
+    $('#console').toggle();
+
+    // bind input file change
+    $('#file').change(onFileChange);
 });
 
 // window onload event

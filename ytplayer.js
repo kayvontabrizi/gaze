@@ -19,12 +19,12 @@ function onYouTubeIframeAPIReady() {
     // loop through YTPlayers and create each
     for (var key in YTPlayers) {
         var yt_player = YTPlayers[key];
-        yt_player.player = new YT.Player(yt_player.element, yt_player.params);
+        yt_player.player = new YT.Player(yt_player.element_ID, yt_player.params);
     }
 };
 
 // define a YTPlayer class
-class YTPlayer {
+class YTPlayer extends Player {
     // define state translation dictionary
     static get STATES () {
         return {
@@ -89,16 +89,16 @@ class YTPlayer {
     }
 
     // constructor verifies parameters and creates a YT.Player object
-    constructor(element, ID, height='100%', width='100%', tolerance=3) {
-        // verify element exists and store
-        if (element) this.element = element;
+    constructor(element_ID, video_ID, height='100%', width='100%', tolerance=3) {
+        // verify element ID exists and store
+        if (!!document.getElementById(element_ID)) this.element_ID = element_ID;
         else utils.error("Element doesn't exist!");
 
         // store params, initialize null player and video queue, track player readiness
         this.params = {
             height: height,
             width: width,
-            videoId: ID,
+            videoId: video_ID,
             events: {
                 'onStateChange': YTPlayer.onStateChange,
                 'onReady': YTPlayer.onPlayerReady,
@@ -112,10 +112,10 @@ class YTPlayer {
         this.tolerance = tolerance;
 
         // if api ready, create a YT.Player object
-        if (YT_API_ready) this.player = new YT.Player(this.element, this.params);
+        if (YT_API_ready) this.player = new YT.Player(this.element_ID, this.params);
 
         // append player to YTPlayers list for tracking
-        YTPlayers[element] = this;
+        YTPlayers[element_ID] = this;
     }
 
     // cue a video given an ID

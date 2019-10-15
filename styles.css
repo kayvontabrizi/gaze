@@ -16,6 +16,11 @@ video {
     width: 100%;
 }
 
+.player {
+    box-sizing: border-box;
+    padding: 50px;
+}
+
 .local {
     top: 138px;
     left: 184px;
@@ -34,11 +39,6 @@ video {
     transform: scaleX(-1);
 }
 
-#youtube_player {
-    box-sizing: border-box;
-    padding: 50px;
-}
-
 #console {
     display: none;
     position: absolute;
@@ -47,6 +47,7 @@ video {
     left: 0;
     right: 0;
     z-index: 100;
+    font-size: 0;
 }
 
 #console input {
@@ -61,6 +62,14 @@ video {
     background: #222;
     border: none;
     outline: none;
+}
+
+#console input[type=file] {
+    position: absolute;
+}
+
+#console input[type=text] {
+    width: 90%;
 }
 
 .panel {
