@@ -165,6 +165,14 @@ $(() => {
         if(event.key === '~') tilde_down = false;
     });
 
+    // bind url enter to console submission
+    $('input[name=url]').keypress(event => {
+        if(event.which == 13) {
+            $(event.target).parent().submit();
+            return false;
+        }
+    });
+
     // bind console url submission
     $('form#console').submit(event => {
         // prevent default submission

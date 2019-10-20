@@ -113,26 +113,27 @@ class LocalPlayer extends Player {
 
     // adjust player given new state object
     syncState(new_state) {
-        //
-        utils.log(new_state);
+        // collect event type and data
         var event_type = new_state[0];
         var event_data = new_state[1];
 
         // handle the various event types
-        switch(expression) {
-            case event_type == 'play':
+        switch (event_type) {
+            case 'play':
                 this.video.play();
             break;
-            case ['pause', 'waiting'].includes(event_type):
+            case 'pause':
                 this.video.pause();
             break;
-            case event_type == 'seeked':
+            case 'waiting':
+                this.video.pause();
+            break;
+            case 'seeked':
                 this.video.currentTime = event_data;
             break;
             default:
                 utils.log(event_type);
                 utils.log(event_data);
-            // code block
         }
     }
 }

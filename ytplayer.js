@@ -107,7 +107,7 @@ class YTPlayer extends Player {
     // adjust player given new state object
     syncState(new_state) {
         // get current player and state
-        var old_state = this.player.getState();
+        var old_state = this.getState();
 
         // switch video if necessary
         if (new_state['ID'] != old_state['ID']) this.cueByID(new_state['ID']);

@@ -26,7 +26,8 @@
         <div class="local panel" style="background: white; z-index: 30;">
             <video id="local_video" autoplay="true"></video>
         </div>
-        <form id="console">
+        <form id="console" autocomplete="off">
+            <input type="text" name="hidden" autocomplete="off_hack" style="display: none;">
             <input type="text" name="url" value="">
             <input type="file" name="file" id="file">
         </form>
