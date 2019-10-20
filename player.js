@@ -13,6 +13,7 @@ class Player {
             'open': "This method should show the video player.",
             'load': "This method should load a video given identifying data.",
             'syncState': "This element should accept a state object and update the player state.",
+            'onStateChange': "This method should trigger whenever state info needs publishing.",
         };
 
         // loop through expected methods
@@ -20,7 +21,7 @@ class Player {
             // check whether method was implemented
             if (this[method] === undefined) {
                 // ensure method has been overwritten
-                utils.error("The '"+method+"' method must be implemented!\n"+help[method]);
+                utils.error("The '"+method+"' method must be implemented!\n"+docstrings[method]);
             }
         }
     }

@@ -66,7 +66,7 @@ class Room {
 
         // deliver ICE agent to peer upon receipt
         this.pc.onicecandidate = event => {
-            if (event.candidate) publish({'candidate': event.candidate});
+            if (event.candidate) this.publish({'candidate': event.candidate});
         };
 
         // upon remote stream addition, set remote video source to stream
@@ -86,10 +86,10 @@ class Room {
                 this.pc.createOffer()
 
                 // upon success set the peer connection's local description
-                .then(setSendLocalDescription)
+                .then(this.setSendLocalDescription)
 
                 // upon further success publish the local description
-                .then(() => publish({'sdp': this.pc.localDescription}))
+                .then(() => this.publish({'sdp': this.pc.localDescription}))
 
                 // catch and log any error
                 .catch(utils.warning)
@@ -159,10 +159,10 @@ class Room {
                         this.pc.createAnswer()
 
                         // upon success set the peer connection's local description
-                        .then(setSendLocalDescription)
+                        .then(this.setSendLocalDescription)
 
                         // upon further success publish the local description
-                        .then(() => publish({'sdp': this.pc.localDescription}))
+                        .then(() => this.publish({'sdp': this.pc.localDescription}))
 
                         // catch and log any error
                         .catch(utils.warning);

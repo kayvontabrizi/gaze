@@ -64,6 +64,11 @@ class YTPlayer extends Player {
         room.publish({'player_state': YTPlayers[event.target.a.id].getState()});
     }
 
+    // trigger static onStateChange method
+    onStateChange(event) {
+        YTPlayer.onStateChange(event);
+    }
+
     // generates state object
     getState() {
         // handle undefined player state

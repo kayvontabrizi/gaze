@@ -41,6 +41,8 @@ youtube_init();
 main_ytplayer = new YTPlayer('youtube_player', '3jWRrafhO7M');
 
 // set default room player and close others
+// room.player = main_local_player;
+// main_ytplayer.close();
 room.player = main_ytplayer;
 main_local_player.close();
 
