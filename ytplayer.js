@@ -61,7 +61,15 @@ class YTPlayer extends Player {
 
     // handles player state changes
     static onStateChange(event) {
-        room.publish({'player_state': YTPlayers[event.target.a.id].getState()});
+        // collect state
+        var state = YTPlayers[event.target.a.id].getState(event);
+
+        // report debugging info
+        utils.debug('YTPlayer: onStateChange');
+        utils.debug(state);
+
+        // publish state
+        room.publish({'player_state': state});
     }
 
     // trigger static onStateChange method
@@ -70,17 +78,21 @@ class YTPlayer extends Player {
     }
 
     // generates state object
-    getState() {
+    getState(event) {
         // handle undefined player state
-        if (this.player.getPlayerState() === undefined) state = 'paused';
-        else var state = YTPlayer.STATES[this.player.getPlayerState().toString()];
+        if (this.player.getPlayerState() === undefined) var player_state = 'paused';
+        else var player_state = YTPlayer.STATES[this.player.getPlayerState().toString()];
 
-        // return a dictionary with player state info
+        // grab video data
+        var video_data = this.player.getVideoData();
+
+        // return a state dictionary with player info
         return {
-            'state': state,
+            'state': player_state,
             'time': this.player.getCurrentTime(),
-            'type': 'youtube',
-            'ID': this.player.getVideoData()['video_id'],
+            'rate': this.player.getPlaybackRate(),
+            'type': 'YTPlayer',
+            'ID': video_data === undefined ? null : video_data['video_id'],
         };
     }
 
@@ -109,12 +121,18 @@ class YTPlayer extends Player {
         // get current player and state
         var old_state = this.getState();
 
+        // stop if new state ID is null
+        if (new_state['ID'] === null) utils.error(new_state);
+
         // switch video if necessary
         if (new_state['ID'] != old_state['ID']) this.cueByID(new_state['ID']);
 
         // adjust time if necessary
         var time_diff = Math.abs(old_state['time']-new_state['time']);
         if (time_diff > this.tolerance) this.player.seekTo(new_state['time'], true);
+
+        // adjust playback rate if necessary
+        if (new_state['rate'] == new_state['rate']) this.player.setPlaybackRate(new_state['rate']);
 
         // play if new_state is 'playing' and old state is neither 'playing' nor 'buffering'
         if (new_state['state'] == 'playing' &&
@@ -123,6 +141,11 @@ class YTPlayer extends Player {
         // pause if new_state is 'paused' and old state is 'playing' or 'buffering'
         if (new_state['state'] == 'paused' &&
             ['playing', 'buffering'].includes(old_state['state'])) this.player.pauseVideo();
+
+        // report debugging info
+        utils.debug('YTPlayer: syncState');
+        utils.debug(old_state);
+        utils.debug(new_state);
     }
 
     // define state translation dictionary

@@ -1,4 +1,4 @@
-// define a Room object for p2p videochatting management
+// define a Room object for peer-to-peer videochatting management
 class Room {
     // configure Room and underlying ScaleDrone object for two-person communication
     constructor(drone, room_name, pc_config, local_video, remote_video, player=null, constraints={video: true, audio: true}) {
@@ -24,7 +24,10 @@ class Room {
             this.room = drone.subscribe(this.room_name);
 
             // handle opening a connection to room
-            this.room.on('open', utils.log);
+            this.room.on('open', msg => {
+                // throw an error if any message is passed
+                if (msg !== undefined) utils.error(msg);
+            });
 
             // process members list upon receiving it
             this.room.on('members', members => {
@@ -55,7 +58,7 @@ class Room {
     // set and publish the peer connection's description
     setSendLocalDescription(local_sdp) {
         // set local description
-        utils.log('Set local SDP.');
+        utils.debug('Set local SDP.');
         return this.pc.setLocalDescription(local_sdp);
     }
 
@@ -147,7 +150,7 @@ class Room {
             if (message.sdp) {
                 // set the peer connection's remote description
                 var remote_sdp = new RTCSessionDescription(message.sdp);
-                utils.log('Set remote SDP.');
+                utils.debug('Set remote SDP.');
                 this.pc.setRemoteDescription(remote_sdp)
 
                 // upon success, answer any offer
@@ -155,7 +158,7 @@ class Room {
                     // verify remote description is an offer
                     if (this.pc.remoteDescription.type === 'offer') {
                         // log the offer
-                        utils.log('Received offer.');
+                        utils.debug('Received offer.');
 
                         // create an answer
                         this.pc.createAnswer()
@@ -173,7 +176,7 @@ class Room {
                     }
 
                     // log if it's an answer
-                    else if (this.pc.remoteDescription.type === 'answer') utils.log('Received answer.');
+                    else if (this.pc.remoteDescription.type === 'answer') utils.debug('Received answer.');
 
                     // otherwise log unrecognized sdp type
                     else utils.warning(this.pc.remoteDescription.type);
@@ -189,11 +192,51 @@ class Room {
                 this.candidate_queue.push(message.candidate);
             }
 
-            // check message for a player state
-            else if (message.player_state && this.player) this.player.syncState(message.player_state);
+            // check message for a player change
+            else if (message.new_player && this.player) {
+                // report debugging info
+                utils.debug('Room: Incoming message!');
+                utils.debug(message);
+                utils.debug('Room.player: '+this.player.constructor.name);
 
-            // log any other message
-            else utils.log(message);
+                // check whether the current and new players match
+                if (this.player.constructor.name != message.new_player) {
+                    // close the current player
+                    this.player.close();
+
+                    // switch to the new player
+                    switch (message.new_player) {
+                        case 'YTPlayer':
+                            this.player = main_ytplayer;
+                            break;
+                        case 'LocalPlayer':
+                            this.player = main_local_player;
+                            break;
+                        default:
+                            // throw an error for unfamiliar players
+                            utils.error('Unrecognized player: '+message.new_player);
+                    }
+
+                    // open the new player
+                    this.player.open();
+                }
+            }
+
+            // check message for a player state
+            else if (message.player_state && this.player) {
+                // report debugging info
+                utils.debug('Message received!');
+                utils.debug(message.player_state);
+                utils.debug(this.player);
+
+                // if player types match, sync player state
+                if (message.player_state.type === this.player.constructor.name) {
+                    this.player.syncState(message.player_state);
+                }
+            }
+
+            // throw error if any other message
+            else utils.error(message);
 
             // ensure peer connection has a remote description
             if (this.pc.remoteDescription) {

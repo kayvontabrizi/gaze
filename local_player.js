@@ -53,7 +53,7 @@ class LocalPlayer extends Player {
 
         // add listeners for listed events
         for (var event in events) {
-            this.video.addEventListener(event, (event) => {
+            this.video.addEventListener(event, event => {
                 this.onStateChange(event);
             });
         }
@@ -73,10 +73,19 @@ class LocalPlayer extends Player {
 
         // check for synced events
         if (event.type in synced_events) {
-            //
-            room.publish({
-                'player_state': [event.type, synced_events[event.type]]
-            });
+            // publish the state of the local player object
+            var state = {
+                'player_state': {
+                    'event': event.type,
+                    'data': synced_events[event.type],
+                    'type': 'LocalPlayer',
+                }
+            };
+            room.publish(state);
+
+            // report debugging info
+            utils.debug('LocalPlayer: onStateChange');
+            utils.debug(state);
         }
     }
 
@@ -87,7 +96,6 @@ class LocalPlayer extends Player {
             this.video.appendChild(this.source);
         }
         this.source.setAttribute('src', src);
-        utils.log(this.source);
         this.video.load();
     }
 
@@ -114,26 +122,34 @@ class LocalPlayer extends Player {
     // adjust player given new state object
     syncState(new_state) {
         // collect event type and data
-        var event_type = new_state[0];
-        var event_data = new_state[1];
+        var event_type = new_state.event;
+        var event_data = new_state.data;
 
         // handle the various event types
         switch (event_type) {
+            case 'loadstart':
+                $('#console').show();
+                alert("Please upload a local file!");
+                break;
             case 'play':
                 this.video.play();
-            break;
+                break;
             case 'pause':
-                this.video.pause();
-            break;
             case 'waiting':
                 this.video.pause();
-            break;
+                break;
+            case 'ratechange':
+                this.video.playbackRate = event_data;
+                break;
             case 'seeked':
                 this.video.currentTime = event_data;
-            break;
+                break;
             default:
-                utils.log(event_type);
-                utils.log(event_data);
+                utils.error(new_state);
         }
+
+        // report debugging info
+        utils.debug('LocalPlayer: syncState');
+        utils.debug(new_state);
     }
 }

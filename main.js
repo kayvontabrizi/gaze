@@ -41,21 +41,23 @@ youtube_init();
 main_ytplayer = new YTPlayer('youtube_player', '3jWRrafhO7M');
 
 // set default room player and close others
-// room.player = main_local_player;
-// main_ytplayer.close();
-room.player = main_ytplayer;
-main_local_player.close();
+room.player = main_local_player;
+main_ytplayer.close();
+// room.player = main_ytplayer;
+// main_local_player.close();
 
 // handle console submission
 function onConsoleSubmit(event) {
     // extract input
-    var input = $('input[name=url]')[0].value;
+    var input_elem = document.getElementById('input_url');
+    var input = input_elem.value.trim();
 
     // extract ID from input
     var ID = input.includes('youtube') ? YTPlayer.URL2ID(input) : input;
 
     // set the room player to the main youtube player, if not already
     if (!(room.player instanceof YTPlayer)) {
+        room.publish({'new_player': 'YTPlayer'});
         // close the current player, set a new one, and open it
         room.player.close();
         room.player = main_ytplayer;
@@ -64,6 +66,9 @@ function onConsoleSubmit(event) {
 
     // update the youtube player video
     room.player.cueByID(ID);
+
+    // clear file selector value
+    input_elem.value = '';
 };
 
 // handle file selector change
@@ -76,6 +81,7 @@ function onFileChange(event) {
 
     // set the room player to the main local player, if not already
     if (!(room.player instanceof LocalPlayer)) {
+        room.publish({'new_player': 'LocalPlayer'});
         // close the current player, set a new one, and open it
         room.player.close();
         room.player = main_local_player;
@@ -166,7 +172,7 @@ $(() => {
     });
 
     // bind url enter to console submission
-    $('input[name=url]').keypress(event => {
+    $('#input_url').keypress(event => {
         if(event.which == 13) {
             $(event.target).parent().submit();
             return false;
@@ -186,7 +192,7 @@ $(() => {
     });
 
     // bind input file change
-    $('#file').change(onFileChange);
+    $('#input_file').change(onFileChange);
 });
 
 // window onload event

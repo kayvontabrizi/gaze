@@ -2,8 +2,14 @@
 class utils {
     // basic logging function
     static log(msg) {
-        // if provided, log message in console
-        if (msg) console.log(msg);
+        // log message in console
+        console.log(msg);
+    }
+
+    // conditional debug logging
+    static debug(msg) {
+        // if debug is true, log message
+        if (utils.DEBUG === true) utils.log(msg);
     }
 
     // warning handling function
@@ -18,3 +24,6 @@ class utils {
         throw new Error(msg);
     }
 }
+
+// set class methods
+utils.DEBUG = false;
