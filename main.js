@@ -1,8 +1,8 @@
-// // throw exception if the user fails simple password prompt
-// var pass = prompt("Password?", "<password goes here>");
-// if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
-//     throw new Error("Incorrect password!");
-// }
+// throw exception if the user fails simple password prompt
+var pass = prompt("Password?", "<password goes here>");
+if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
+    throw new Error("Incorrect password!");
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,8 +35,8 @@ let room = new Room(drone, room_name, pc_config, local_video, remote_video)
 youtube_init();
 
 // create main youtube player and local player objects
-main_ytplayer = new YTPlayer('youtube_player', room, '3jWRrafhO7M');
 main_local_player = new LocalPlayer('local_player', room);
+main_ytplayer = new YTPlayer('youtube_player', room, '3jWRrafhO7M');
 
 // handle console submission
 function onConsoleSubmit(event) {

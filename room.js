@@ -33,7 +33,7 @@ class Room {
             // process members list upon receiving it
             this.room.on('members', members => {
                 // alert and return if room has more than 2 members
-                if (members.length > 2) return alert('The room is full.');
+                if (members.length > 2) return utils.alert('The room is full.');
 
                 // the second user to connect will make the offer
                 const offering = members.length === 2;
@@ -242,23 +242,6 @@ class Room {
 
                 // switch to the new player
                 this.switch(message.new_player);
-
-                // // check whether the current and new players match
-                // if (this.player.constructor.name != message.new_player) {
-                //     // close the current player
-                //     this.player.close();
-
-                //     // switch to the new player, if recognized
-                //     if (message.new_player in this.players) {
-                //         this.player = this.players[message.new_player];
-                //     }
-
-                //     // throw an error for unfamiliar players
-                //     else utils.error('Unrecognized player: '+message.new_player);
-
-                //     // open the new player
-                //     this.player.open();
-                // }
             }
 
             // check message for a player state

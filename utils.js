@@ -1,5 +1,11 @@
 // utils class to hold utility methods
 class utils {
+    // basic alert function
+    static alert(msg) {
+        // alert message
+        alert(msg);
+    }
+
     // basic logging function
     static log(msg) {
         // log message in console

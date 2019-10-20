@@ -130,7 +130,7 @@ class LocalPlayer extends Player {
         switch (event_type) {
             case 'loadstart':
                 $('#console').show();
-                alert("Please upload a local file!");
+                utils.alert("Please upload a local file!");
                 break;
             case 'play':
                 this.video.play();
