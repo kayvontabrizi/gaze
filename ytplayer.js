@@ -63,23 +63,24 @@ class YTPlayer extends Player {
         if (yt_player.queue.length > 0) yt_player.loadByID(yt_player.queue.pop());
     }
 
-    // handles player state changes
-    static onStateChange(event) {
-        // collect player and its state
-        var player = YTPlayers[event.target.a.id];
-        var state = player.getState(event);
+    // hide player
+    close() {
+        // stop any playing video
+        if (this.ready) this.player.stopVideo();
 
-        // report debugging info
-        utils.debug('YTPlayer: onStateChange');
-        utils.debug(state);
-
-        // publish state
-        player.room.publish({'player_state': state});
+        // get player element and hide
+        document.getElementById(this.element_ID).style.display = 'none';
     }
 
-    // trigger static onStateChange method
-    onStateChange(event) {
-        YTPlayer.onStateChange(event);
+    // hide player
+    open() {
+        // get player element and hide
+        document.getElementById(this.element_ID).style.display = '';
+    }
+
+    // load a video
+    load(data) {
+        cueByID(data);
     }
 
     // generates state object
@@ -101,24 +102,23 @@ class YTPlayer extends Player {
         };
     }
 
-    // hide player
-    close() {
-        // stop any playing video
-        if (this.ready) this.player.stopVideo();
+    // handles player state changes
+    static onStateChange(event) {
+        // collect player and its state
+        var player = YTPlayers[event.target.a.id];
+        var state = player.getState(event);
 
-        // get player element and hide
-        document.getElementById(this.element_ID).style.display = 'none';
+        // report debugging info
+        utils.debug('YTPlayer: onStateChange');
+        utils.debug(state);
+
+        // publish state
+        player.room.publish({'player_state': state});
     }
 
-    // hide player
-    open() {
-        // get player element and hide
-        document.getElementById(this.element_ID).style.display = '';
-    }
-
-    // load a video
-    load(data) {
-        cueByID(data);
+    // trigger static onStateChange method
+    onStateChange(event) {
+        YTPlayer.onStateChange(event);
     }
 
     // adjust player given new state object

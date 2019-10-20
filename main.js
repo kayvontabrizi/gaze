@@ -1,7 +1,12 @@
-// throw exception if the user fails simple password prompt
-var pass = prompt("Password?", "<password goes here>");
-if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
-    throw new Error("Incorrect password!");
+// skip password check when debugging
+if (!utils.DEBUG) {
+    // collect user input via simple prompt
+    var pass = prompt("Password?", "<password goes here>");
+
+    // throw exception if the user fails password prompt
+    if (pass === null || md5(pass+'flarp') !== '4bc08f05a6320a858a64cba8f4d237d2') {
+        throw new Error("Incorrect password!");
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,7 +165,7 @@ $(() => {
     });
 
     // bind console url submission
-    $('form#console').submit(event => {
+    $('#console').submit(event => {
         // prevent default submission
         event.preventDefault();
 

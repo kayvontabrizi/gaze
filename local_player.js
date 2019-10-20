@@ -1,7 +1,7 @@
 // define a LocalPlayer class
 class LocalPlayer extends Player {
     // constructor verifies parameters and creates a LocalPlayer object
-    constructor(element_ID, room, init_src=null) {
+    constructor(element_ID, room, init_src=null, tolerance=3) {
         // initialize superclass
         super();
 
@@ -12,6 +12,9 @@ class LocalPlayer extends Player {
         // identify video element and create source element
         this.video = document.getElementById(element_ID);
         this.source = document.createElement('source');
+
+        // set sync tolerance (seconds)
+        this.tolerance = tolerance;
 
         // store and register with room
         this.room = room;
@@ -60,36 +63,6 @@ class LocalPlayer extends Player {
         }
     }
 
-    // publish state change to room
-    onStateChange(event) {
-        // events requiring syncing
-        var synced_events = {
-            'loadstart': this.source.src,
-            'pause': null,
-            'play': null,
-            'ratechange': this.video.playbackRate,
-            'seeked': this.video.currentTime,
-            'waiting': null,
-        }
-
-        // check for synced events
-        if (event.type in synced_events) {
-            // publish the state of the local player object
-            var state = {
-                'player_state': {
-                    'event': event.type,
-                    'data': synced_events[event.type],
-                    'type': 'LocalPlayer',
-                }
-            };
-            this.room.publish(state);
-
-            // report debugging info
-            utils.debug('LocalPlayer: onStateChange');
-            utils.debug(state);
-        }
-    }
-
     // set and load a video source
     loadSRC(src) {
         this.video.pause();
@@ -120,37 +93,61 @@ class LocalPlayer extends Player {
         loadSRC(data);
     }
 
+    // gather player state
+    getState(event) {
+        return {
+            'paused': this.video.paused || this.video.ended,
+            'event': event === undefined ? null : event.type,
+            'time': this.video.currentTime,
+            'rate': this.video.playbackRate,
+            'src': this.source.src,
+            'type': 'LocalPlayer',
+        };
+    }
+
+    // publish state change to room
+    onStateChange(event) {
+        // enumerate events requiring syncing
+        var synced_events = ['loadstart', 'pause', 'play', 'ratechange', 'seeked', 'waiting'];
+
+        // gather player state
+        var state = this.getState(event);
+
+        // check for synced events
+        if (synced_events.includes(event.type)) {
+            // publish player state
+            this.room.publish({'player_state': state});
+
+            // report debugging info
+            utils.debug('LocalPlayer: onStateChange');
+            utils.debug(state);
+        }
+    }
+
     // adjust player given new state object
     syncState(new_state) {
-        // collect event type and data
-        var event_type = new_state.event;
-        var event_data = new_state.data;
+        // gather current player state
+        var old_state = this.getState();
 
-        // handle the various event types
-        switch (event_type) {
-            case 'loadstart':
-                $('#console').show();
-                utils.alert("Please upload a local file!");
-                break;
-            case 'play':
-                this.video.play();
-                break;
-            case 'pause':
-            case 'waiting':
-                this.video.pause();
-                break;
-            case 'ratechange':
-                this.video.playbackRate = event_data;
-                break;
-            case 'seeked':
-                this.video.currentTime = event_data;
-                break;
-            default:
-                utils.error(new_state);
-        }
+        // adjust time if necessary
+        var time_diff = Math.abs(old_state['time']-new_state['time']);
+        if (time_diff > this.tolerance) this.video.currentTime = new_state['time'];
+
+        // adjust playback rate if necessary
+        if (new_state['rate'] == new_state['rate']) this.video.playbackRate = new_state['rate'];
+
+        // play if new_state is playing and old state is paused, play
+        if (!new_state['paused'] && old_state['paused']) this.video.play().then(utils.log).catch(utils.error);
+
+        // play if new_state is paused and old state is playing, pause
+        if (new_state['paused'] && !old_state['paused']) this.video.pause();
+
+        // if new_state event is 'loadstart', show console
+        if (new_state.event == 'loadstart') $('#console').show();
 
         // report debugging info
         utils.debug('LocalPlayer: syncState');
+        utils.debug(old_state);
         utils.debug(new_state);
     }
 }
