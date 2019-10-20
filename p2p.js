@@ -62,7 +62,7 @@ class Room {
     // creates and handles a peer connection
     setupPeerConnection(offering) {
         // create a peer connection from configuration
-        this.pc = new RTCPeerConnection(pc_config);
+        this.pc = new RTCPeerConnection(this.pc_config);
 
         // deliver ICE agent to peer upon receipt
         this.pc.onicecandidate = event => {
@@ -71,7 +71,7 @@ class Room {
 
         // upon remote stream addition, set remote video source to stream
         this.pc.ontrack = event => {
-            remote_video.srcObject = event.streams[0];
+            this.remote_video.srcObject = event.streams[0];
         };
 
         // if offering, prepare PeerConnection to create an offer upon negotiation
@@ -120,9 +120,9 @@ class Room {
             // upon success
             .then(stream => {
                 // set local video source to stream and mute
-                local_video.srcObject = stream;
-                local_video.controls = false;
-                local_video.muted = true;
+                this.local_video.srcObject = stream;
+                this.local_video.controls = false;
+                this.local_video.muted = true;
 
                 // add stream tracks to peer connection
                 stream.getTracks().forEach(track => this.pc.addTrack(track, stream));
@@ -186,7 +186,7 @@ class Room {
             // check message for an ICE candidate
             else if (message.candidate) {
                 // add ICE candidate to a processing queue
-                candidate_queue.push(message.candidate);
+                this.candidate_queue.push(message.candidate);
             }
 
             // check message for a player state
@@ -198,9 +198,9 @@ class Room {
             // ensure peer connection has a remote description
             if (this.pc.remoteDescription) {
                 // loop through candidates in queue
-                candidate_queue.forEach(candidate => {
+                this.candidate_queue.forEach(candidate => {
                     // add any new ICE candidate to our peer connection
-                    ice_candidate = new RTCIceCandidate(candidate);
+                    var ice_candidate = new RTCIceCandidate(candidate);
                     this.pc.addIceCandidate(ice_candidate)
 
                     // catch and log any error
@@ -208,7 +208,7 @@ class Room {
                 });
 
                 // clear candidate queue
-                candidate_queue = [];
+                this.candidate_queue = [];
             }
         });
     }
