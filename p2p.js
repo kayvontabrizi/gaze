@@ -86,7 +86,9 @@ class Room {
                 this.pc.createOffer()
 
                 // upon success set the peer connection's local description
-                .then(this.setSendLocalDescription)
+                .then((local_sdp) => {
+                    this.setSendLocalDescription(local_sdp);
+                })
 
                 // upon further success publish the local description
                 .then(() => this.publish({'sdp': this.pc.localDescription}))
@@ -159,7 +161,9 @@ class Room {
                         this.pc.createAnswer()
 
                         // upon success set the peer connection's local description
-                        .then(this.setSendLocalDescription)
+                        .then((local_sdp) => {
+                            this.setSendLocalDescription(local_sdp);
+                        })
 
                         // upon further success publish the local description
                         .then(() => this.publish({'sdp': this.pc.localDescription}))
