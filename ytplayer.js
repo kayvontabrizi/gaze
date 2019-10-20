@@ -1,7 +1,7 @@
 // define a YTPlayer class
 class YTPlayer extends Player {
     // constructor verifies parameters and creates a YT.Player object
-    constructor(element_ID, video_ID, height='100%', width='100%', tolerance=3) {
+    constructor(element_ID, room, video_ID, height='100%', width='100%', tolerance=3) {
         // initialize superclass
         super();
 
@@ -25,6 +25,10 @@ class YTPlayer extends Player {
 
         // set sync tolerance (seconds)
         this.tolerance = tolerance;
+
+        // store and register with room
+        this.room = room;
+        this.room.register(this);
 
         // if api ready, create a YT.Player object
         if (YT_API_ready) this.player = new YT.Player(this.element_ID, this.params);
@@ -61,15 +65,16 @@ class YTPlayer extends Player {
 
     // handles player state changes
     static onStateChange(event) {
-        // collect state
-        var state = YTPlayers[event.target.a.id].getState(event);
+        // collect player and its state
+        var player = YTPlayers[event.target.a.id];
+        var state = player.getState(event);
 
         // report debugging info
         utils.debug('YTPlayer: onStateChange');
         utils.debug(state);
 
         // publish state
-        room.publish({'player_state': state});
+        player.room.publish({'player_state': state});
     }
 
     // trigger static onStateChange method

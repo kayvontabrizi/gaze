@@ -31,20 +31,12 @@ let room = new Room(drone, room_name, pc_config, local_video, remote_video)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// create main local player
-main_local_player = new LocalPlayer('local_player');
-
 // initialize youtube API
 youtube_init();
 
-// create main youtube player
-main_ytplayer = new YTPlayer('youtube_player', '3jWRrafhO7M');
-
-// set default room player and close others
-room.player = main_local_player;
-main_ytplayer.close();
-// room.player = main_ytplayer;
-// main_local_player.close();
+// create main youtube player and local player objects
+main_ytplayer = new YTPlayer('youtube_player', room, '3jWRrafhO7M');
+main_local_player = new LocalPlayer('local_player', room);
 
 // handle console submission
 function onConsoleSubmit(event) {
@@ -55,19 +47,13 @@ function onConsoleSubmit(event) {
     // extract ID from input
     var ID = input.includes('youtube') ? YTPlayer.URL2ID(input) : input;
 
-    // set the room player to the main youtube player, if not already
-    if (!(room.player instanceof YTPlayer)) {
-        room.publish({'new_player': 'YTPlayer'});
-        // close the current player, set a new one, and open it
-        room.player.close();
-        room.player = main_ytplayer;
-        room.player.open();
-    }
+    // switch to the room player to the youtube player
+    room.switch('YTPlayer');
 
     // update the youtube player video
     room.player.cueByID(ID);
 
-    // clear file selector value
+    // clear console input value
     input_elem.value = '';
 };
 
@@ -79,14 +65,8 @@ function onFileChange(event) {
     // revoke any pre-existing ObjectURL
     if (local_player.src) URL.revokeObjectURL(local_player.src);
 
-    // set the room player to the main local player, if not already
-    if (!(room.player instanceof LocalPlayer)) {
-        room.publish({'new_player': 'LocalPlayer'});
-        // close the current player, set a new one, and open it
-        room.player.close();
-        room.player = main_local_player;
-        room.player.open();
-    }
+    // switch to the room player to the local player
+    room.switch('LocalPlayer');
 
     // cue local player to load new video
     room.player.loadSRC(url);

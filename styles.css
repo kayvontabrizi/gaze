@@ -65,6 +65,7 @@ video {
 }
 
 #console input[type=file] {
+    font-size: 0;
     position: absolute;
 }
 

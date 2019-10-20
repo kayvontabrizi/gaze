@@ -25,5 +25,5 @@ class utils {
     }
 }
 
-// set class methods
+// set class properties
 utils.DEBUG = false;

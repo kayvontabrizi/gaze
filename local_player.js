@@ -1,7 +1,7 @@
 // define a LocalPlayer class
 class LocalPlayer extends Player {
     // constructor verifies parameters and creates a LocalPlayer object
-    constructor(element_ID, init_src=null, tolerance=3) {
+    constructor(element_ID, room, init_src=null) {
         // initialize superclass
         super();
 
@@ -13,11 +13,12 @@ class LocalPlayer extends Player {
         this.video = document.getElementById(element_ID);
         this.source = document.createElement('source');
 
+        // store and register with room
+        this.room = room;
+        this.room.register(this);
+
         // load initial src, if provided
         if (init_src !== null) this.loadSRC(init_src);
-
-        // set sync tolerance (seconds)
-        this.tolerance = tolerance;
 
         // list events
         var events = {
@@ -81,7 +82,7 @@ class LocalPlayer extends Player {
                     'type': 'LocalPlayer',
                 }
             };
-            room.publish(state);
+            this.room.publish(state);
 
             // report debugging info
             utils.debug('LocalPlayer: onStateChange');

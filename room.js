@@ -1,19 +1,20 @@
 // define a Room object for peer-to-peer videochatting management
 class Room {
     // configure Room and underlying ScaleDrone object for two-person communication
-    constructor(drone, room_name, pc_config, local_video, remote_video, player=null, constraints={video: true, audio: true}) {
+    constructor(drone, room_name, pc_config, local_video, remote_video, constraints={video: true, audio: true}) {
         // store room name, PeerConnection configuration, video DOM elements, a player object, and getUserMedia constraints
         this.room_name = room_name;
         this.pc_config = pc_config;
         this.local_video = local_video;
         this.remote_video = remote_video;
         this.constraints = constraints;
-        this.player = player;
 
-        // instantiate null room, peer connection and empty candidate queue globals
+        // instantiate null player, room, peer connection, along with empty candidate queue and list of players
+        this.player = null;
         this.room = null;
         this.pc = null;
         this.candidate_queue = [];
+        this.players = {};
 
         // handle opening a connection to scaledrone
         drone.on('open', error => {
@@ -51,8 +52,48 @@ class Room {
 
     // publish data in room
     publish(data) {
-        // call underlying drone publishing method
-        this.drone.publish({room: this.room_name, message: data});
+        // if drone ready, call drone publication method
+        if (this.drone.readyState > 0) this.drone.publish({room: this.room_name, message: data});
+    }
+
+    // register a player with room
+    register(new_player) {
+        // throw an error if a player of this type already registered
+        if (new_player.constructor.name in this.players) {
+            utils.error('Already registered a "'+new_player.constructor.name+'" player!');
+        }
+
+        // otherwise, register the new player
+        this.players[new_player.constructor.name] = new_player;
+
+        // make the new player active
+        this.switch(new_player);
+    }
+
+    // switch the active player
+    switch(the_player) {
+        // convert objects to constructor name
+        if (typeof(the_player) !== "string") the_player = the_player.constructor.name;
+
+        // do nothing if the selected player is already active
+        if (this.player && the_player === this.player.constructor.name) return;
+
+        // throw an error if player is not registered
+        if (!(the_player in this.players)) {
+            utils.error('"'+the_player+'" is not a registered player!');
+        }
+
+        // close other players
+        for (var player in this.players) {
+            if (player != the_player) this.players[player].close();
+        }
+
+        // publish the change of player
+        this.publish({'new_player': the_player});
+
+        // activate and open the selected player
+        this.player = this.players[the_player];
+        this.player.open();
     }
 
     // set and publish the peer connection's description
@@ -199,27 +240,25 @@ class Room {
                 utils.debug(message);
                 utils.debug('Room.player: '+this.player.constructor.name);
 
-                // check whether the current and new players match
-                if (this.player.constructor.name != message.new_player) {
-                    // close the current player
-                    this.player.close();
+                // switch to the new player
+                this.switch(message.new_player);
 
-                    // switch to the new player
-                    switch (message.new_player) {
-                        case 'YTPlayer':
-                            this.player = main_ytplayer;
-                            break;
-                        case 'LocalPlayer':
-                            this.player = main_local_player;
-                            break;
-                        default:
-                            // throw an error for unfamiliar players
-                            utils.error('Unrecognized player: '+message.new_player);
-                    }
+                // // check whether the current and new players match
+                // if (this.player.constructor.name != message.new_player) {
+                //     // close the current player
+                //     this.player.close();
 
-                    // open the new player
-                    this.player.open();
-                }
+                //     // switch to the new player, if recognized
+                //     if (message.new_player in this.players) {
+                //         this.player = this.players[message.new_player];
+                //     }
+
+                //     // throw an error for unfamiliar players
+                //     else utils.error('Unrecognized player: '+message.new_player);
+
+                //     // open the new player
+                //     this.player.open();
+                // }
             }
 
             // check message for a player state
