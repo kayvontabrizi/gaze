@@ -54,7 +54,7 @@ class YTPlayer extends Player {
     // handles player ready event
     static onPlayerReady(event) {
         // identify YT Player object
-        var yt_player = YTPlayers[event.target.a.id];
+        var yt_player = YTPlayers[event.target.f.id];
 
         // set readiness to true
         yt_player.ready = true;
@@ -105,7 +105,7 @@ class YTPlayer extends Player {
     // handles player state changes
     static onStateChange(event) {
         // collect player and its state
-        var player = YTPlayers[event.target.a.id];
+        var player = YTPlayers[event.target.f.id];
         var state = player.getState(event);
 
         // report debugging info
