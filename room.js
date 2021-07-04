@@ -130,15 +130,13 @@ class Room {
                 this.pc.createOffer()
 
                 // upon success set the peer connection's local description
-                .then((local_sdp) => {
-                    this.setSendLocalDescription(local_sdp);
-                })
+                .then((local_sdp) => this.setSendLocalDescription(local_sdp))
 
                 // upon further success publish the local description
                 .then(() => this.publish({'sdp': this.pc.localDescription}))
 
                 // catch and log any error
-                .catch(utils.warning)
+                .catch(utils.error)
 
                 //
                 .finally(() => {
@@ -173,7 +171,7 @@ class Room {
             })
 
             // catch and log any error
-            .catch(utils.warning);
+            .catch(utils.error);
         }
 
         // complain if not available
@@ -183,14 +181,14 @@ class Room {
     // handles receipt of scaledrone signaling data
     setupSignaling() {
         // process scaledrone data upon receipt
-        this.room.on('data', (message, client) => {
+        this.room.on('message', message => {
             // return if client is self
-            if (!client || client.id === this.drone.clientId) return;
+            if (!message.clientId || message.clientId === this.drone.clientId) return;
 
             // check message for a description
-            if (message.sdp) {
+            if (message.data.sdp) {
                 // set the peer connection's remote description
-                var remote_sdp = new RTCSessionDescription(message.sdp);
+                var remote_sdp = new RTCSessionDescription(message.data.sdp);
                 utils.debug('Set remote SDP.');
                 this.pc.setRemoteDescription(remote_sdp)
 
@@ -205,15 +203,13 @@ class Room {
                         this.pc.createAnswer()
 
                         // upon success set the peer connection's local description
-                        .then((local_sdp) => {
-                            this.setSendLocalDescription(local_sdp);
-                        })
+                        .then((local_sdp) => this.setSendLocalDescription(local_sdp))
 
                         // upon further success publish the local description
                         .then(() => this.publish({'sdp': this.pc.localDescription}))
 
                         // catch and log any error
-                        .catch(utils.warning);
+                        .catch(utils.error);
                     }
 
                     // log if it's an answer
@@ -224,36 +220,36 @@ class Room {
                 })
 
                 // catch and log any error
-                .catch(utils.warning);
+                .catch(utils.error);
             }
 
             // check message for an ICE candidate
-            else if (message.candidate) {
+            else if (message.data.candidate) {
                 // add ICE candidate to a processing queue
-                this.candidate_queue.push(message.candidate);
+                this.candidate_queue.push(message.data.candidate);
             }
 
             // check message for a player change
-            else if (message.new_player && this.player) {
+            else if (message.data.new_player && this.player) {
                 // report debugging info
                 utils.debug('Room: Incoming message!');
                 utils.debug(message);
                 utils.debug('Room.player: '+this.player.constructor.name);
 
                 // switch to the new player
-                this.switch(message.new_player);
+                this.switch(message.data.new_player);
             }
 
             // check message for a player state
-            else if (message.player_state && this.player) {
+            else if (message.data.player_state && this.player) {
                 // report debugging info
                 utils.debug('Message received!');
-                utils.debug(message.player_state);
+                utils.debug(message.data.player_state);
                 utils.debug(this.player);
 
                 // if player types match, sync player state
-                if (message.player_state.type === this.player.constructor.name) {
-                    this.player.syncState(message.player_state);
+                if (message.data.player_state.type === this.player.constructor.name) {
+                    this.player.syncState(message.data.player_state);
                 }
             }
 
@@ -269,7 +265,7 @@ class Room {
                     this.pc.addIceCandidate(ice_candidate)
 
                     // catch and log any error
-                    .catch(utils.warning);
+                    .catch(utils.error);
                 });
 
                 // clear candidate queue

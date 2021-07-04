@@ -27,6 +27,7 @@ class utils {
     // error handling function
     static error(msg) {
         // throw an error with the given message
+        utils.log(msg); // lets us inspect message if it's an object
         throw new Error(msg);
     }
 }
