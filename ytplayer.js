@@ -54,7 +54,12 @@ class YTPlayer extends Player {
     // handles player ready event
     static onPlayerReady(event) {
         // identify YT Player object
-        var yt_player = YTPlayers[event.target.f.id];
+        //
+        // NOTE: this is a hack! ideally `event.target` would contain some reference
+        // to the bound element (i.e. `<div id="youtube_player" ...></div>`). I noticed
+        // an ID in the `h` attribute, so I used it, but this will probably change as
+        // the YouTube API is updated.
+        var yt_player = YTPlayers[event.target.h.id];
 
         // set readiness to true
         yt_player.ready = true;
@@ -105,7 +110,7 @@ class YTPlayer extends Player {
     // handles player state changes
     static onStateChange(event) {
         // collect player and its state
-        var player = YTPlayers[event.target.f.id];
+        var player = YTPlayers[event.target.h.id];
         var state = player.getState(event);
 
         // report debugging info

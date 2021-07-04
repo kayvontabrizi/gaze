@@ -21,10 +21,22 @@ const drone = new ScaleDrone('LFHX9cAVqHdPv9Lh');
 // construct room name from hash
 const room_name = 'observable-'+room_hash;
 
+// make synchronous XHR request
+// NOTE: this is really lazy, but I don't wanna wrap everything for proper asynchronicity
+let xhr = new XMLHttpRequest();
+xhr.open("PUT", "https://global.xirsys.net/_turn/Endeavor", false);
+please_dont_steal_me = btoa("ktabrizi:02f81666-01d1-11eb-a5a3-0242ac150002");
+xhr.setRequestHeader("Authorization", "Basic " + please_dont_steal_me);
+xhr.setRequestHeader("Content-Type", "application/json");
+xhr.send(JSON.stringify({"format": "urls"}));
+response = JSON.parse(xhr.responseText);
+
 // create peer connection configuration
 const pc_config = {
-    // iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
-    iceServers: [{urls: 'stun:stun.stunprotocol.org:3478'}]
+    iceServers: [
+        {urls: 'stun:stun.stunprotocol.org:3478'},
+        response.v.iceServers,
+    ]
 };
 
 // track local and remote video objects
